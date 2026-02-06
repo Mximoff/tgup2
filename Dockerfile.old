@@ -4,22 +4,19 @@ FROM golang:1.21-alpine AS builder
 WORKDIR /build
 
 # Install build dependencies
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache git
 
 # Copy go mod files
-COPY go.mod go.sum ./
+COPY go.mod go.sum* ./
 
-# Download dependencies with verbose output
-RUN go mod download && go mod verify
+# Download dependencies
+RUN go mod download
 
 # Copy source
 COPY . .
 
-# Build binary with verbose output
-RUN CGO_ENABLED=0 GOOS=linux go build -v -a -installsuffix cgo -o server .
-
-# Verify binary was created
-RUN test -f server || (echo "Build failed: server binary not found" && exit 1)
+# Build binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server .
 
 # Runtime stage
 FROM alpine:latest
@@ -38,9 +35,6 @@ WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder /build/server .
-
-# Verify binary in runtime
-RUN test -f server && chmod +x server || (echo "Server binary not found in runtime" && exit 1)
 
 # Create necessary directories and files
 RUN mkdir -p /tmp && \
